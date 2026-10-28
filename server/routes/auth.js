@@ -11,6 +11,7 @@ function generateToken(user) {
       userId: user.id,
       email: user.email,
       displayName: user.display_name,
+      accountType: user.account_type,
       isAdmin: user.is_admin
     },
     JWT_SECRET,
@@ -21,10 +22,13 @@ function generateToken(user) {
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { fullName, displayName, email, password, campusId } = req.body;
+    const { fullName, displayName, email, password, campusId, accountType = 'buyer' } = req.body;
 
     if (!fullName || !displayName || !email || !password) {
       return res.status(400).json({ error: 'Please provide full name, display name, email, and password.' });
+    }
+    if (!['buyer', 'seller'].includes(accountType)) {
+      return res.status(400).json({ error: 'Account type must be buyer or seller.' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -40,10 +44,10 @@ router.post('/register', async (req, res) => {
     const isCampusEmail = cleanEmail.endsWith('.edu') || cleanEmail.includes('campus') || cleanEmail.includes('univ');
 
     const result = await query(
-      `INSERT INTO users (full_name, display_name, email, password_hash, campus_id, email_verified, campus_verified, verification_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, full_name, display_name, email, campus_id, email_verified, campus_verified, is_admin, account_status, created_at`,
-      [fullName, displayName, cleanEmail, passwordHash, campusId || null, isCampusEmail, isCampusEmail, verificationCode]
+      `INSERT INTO users (full_name, display_name, email, password_hash, campus_id, email_verified, campus_verified, verification_code, account_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, full_name, display_name, email, campus_id, email_verified, campus_verified, account_type, is_admin, account_status, created_at`,
+      [fullName, displayName, cleanEmail, passwordHash, campusId || null, isCampusEmail, isCampusEmail, verificationCode, accountType]
     );
 
     const user = result.rows[0];
@@ -70,7 +74,7 @@ router.post('/login', async (req, res) => {
     }
 
     const result = await query(
-      `SELECT id, full_name, display_name, email, password_hash, campus_id, email_verified, campus_verified, is_admin, account_status
+      `SELECT id, full_name, display_name, email, password_hash, campus_id, email_verified, campus_verified, account_type, is_admin, account_status
        FROM users WHERE email = $1`,
       [email.trim().toLowerCase()]
     );
@@ -134,7 +138,7 @@ router.get('/me', requireAuth, async (req, res) => {
 router.get('/demo-users', async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, full_name, display_name, email, campus_id, email_verified, campus_verified, is_admin
+      `SELECT id, full_name, display_name, email, campus_id, email_verified, campus_verified, account_type, is_admin
        FROM users
        ORDER BY created_at ASC
        LIMIT 10`
@@ -150,7 +154,7 @@ router.post('/switch-user', async (req, res) => {
   try {
     const { userId } = req.body;
     const result = await query(
-      `SELECT id, full_name, display_name, email, campus_id, email_verified, campus_verified, is_admin, account_status
+      `SELECT id, full_name, display_name, email, campus_id, email_verified, campus_verified, account_type, is_admin, account_status
        FROM users WHERE id = $1`,
       [userId]
     );
@@ -168,4 +172,3 @@ router.post('/switch-user', async (req, res) => {
 });
 
 module.exports = router;
-

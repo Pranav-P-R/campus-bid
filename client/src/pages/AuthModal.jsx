@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, UserPlus, Shield, CheckCircle2, X, AlertCircle } from 'lucide-react';
 
-export default function AuthModal({ onClose }) {
-  const { login, demoUsers, switchUser } = useAuth();
-  const [tab, setTab] = useState('login'); // 'login', 'register', 'verify'
+export default function AuthModal({ onClose, initialTab = 'login' }) {
+  const { login } = useAuth();
+  const [tab, setTab] = useState(initialTab); // 'login', 'register', 'verify'
 
   // Login form
   const [email, setEmail] = useState('');
@@ -16,12 +16,25 @@ export default function AuthModal({ onClose }) {
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [campusId, setCampusId] = useState('');
+  const [accountType, setAccountType] = useState('buyer');
 
   // Verify form
   const [verifyCode, setVerifyCode] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const readResponse = async (res) => {
+    const text = await res.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(res.ok ? 'The server returned an invalid response.' : 'The CampusBid server is unavailable. Start it with npm start and try again.');
+    }
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status}).`);
+    return data;
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -35,8 +48,7 @@ export default function AuthModal({ onClose }) {
         body: JSON.stringify({ email: email.trim(), password })
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await readResponse(res);
 
       login(data.token, data.user);
       onClose();
@@ -62,11 +74,11 @@ export default function AuthModal({ onClose }) {
           email: regEmail.trim(),
           password: regPassword,
           campusId: campusId.trim() || undefined
+          ,accountType
         })
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await readResponse(res);
 
       login(data.token, data.user);
 
@@ -97,23 +109,13 @@ export default function AuthModal({ onClose }) {
         body: JSON.stringify({ code: verifyCode.trim() })
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await readResponse(res);
 
       onClose();
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleQuickDemoLogin = async (userId) => {
-    try {
-      await switchUser(userId);
-      onClose();
-    } catch (err) {
-      setError(err.message);
     }
   };
 
@@ -164,30 +166,6 @@ export default function AuthModal({ onClose }) {
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>{error}</span>
-            </div>
-          )}
-
-          {/* Quick Demo Student Switcher */}
-          {demoUsers.length > 0 && tab !== 'verify' && (
-            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-              <span className="text-[11px] text-slate-400 block mb-2 font-medium">
-                ⚡ Instant Hackathon Demo Sign-in:
-              </span>
-              <div className="grid grid-cols-2 gap-1.5">
-                {demoUsers.slice(0, 4).map((u) => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => handleQuickDemoLogin(u.id)}
-                    className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] text-left truncate border border-slate-700/60 transition-colors"
-                  >
-                    <span className="font-bold block truncate">{u.display_name}</span>
-                    <span className="text-[10px] text-slate-400 truncate block">
-                      {u.display_name.startsWith('Priya') ? 'Seller (Priya)' : 'Buyer'}
-                    </span>
-                  </button>
-                ))}
-              </div>
             </div>
           )}
 
@@ -246,6 +224,12 @@ export default function AuthModal({ onClose }) {
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400"
                   />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1">I want to join as</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['buyer', 'seller'].map((type) => <button key={type} type="button" onClick={() => setAccountType(type)} className={`p-2 rounded-lg border text-xs font-bold capitalize ${accountType === type ? 'border-amber-400 bg-amber-500/10 text-amber-300' : 'border-slate-700 text-slate-400'}`}>{type === 'buyer' ? 'Buyer — find deals' : 'Seller — list items'}</button>)}
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-amber-400 font-medium block mb-1">
@@ -352,4 +336,3 @@ export default function AuthModal({ onClose }) {
     </div>
   );
 }
-

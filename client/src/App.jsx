@@ -4,7 +4,6 @@ import { SocketProvider, useSocket } from './context/SocketContext';
 
 // Components & Pages
 import Navbar from './components/Navbar';
-import QuickUserSwitcher from './components/QuickUserSwitcher';
 import HomePage from './pages/HomePage';
 import AuctionDetailPage from './pages/AuctionDetailPage';
 import CreateAuctionPage from './pages/CreateAuctionPage';
@@ -12,13 +11,15 @@ import MySalesPage from './pages/MySalesPage';
 import AuthModal from './pages/AuthModal';
 import AiAssistantModal from './components/AiAssistantModal';
 import SavedSearchesModal from './components/SavedSearchesModal';
+import LandingPage from './pages/LandingPage';
+import AdminPage from './pages/AdminPage';
 import { Bell, Sparkles, X } from 'lucide-react';
 
 function MainApp() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { toastMessage, clearToast } = useSocket();
 
-  const [activeView, setActiveView] = useState('home'); // 'home', 'details', 'create', 'sales'
+  const [activeView, setActiveView] = useState('home'); // 'home', 'details', 'create', 'sales', 'admin'
   const [selectedAuctionId, setSelectedAuctionId] = useState(null);
 
   // Modals
@@ -44,11 +45,11 @@ function MainApp() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  if (loading) return <div className="min-h-screen bg-slate-950 text-slate-400 flex items-center justify-center">Loading CampusBid...</div>;
+  if (!user) return <PublicApp />;
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
-      {/* Quick Demo Switcher Bar for Hackathon judges & testers */}
-      <QuickUserSwitcher />
-
       {/* Main Navbar */}
       <Navbar
         activeView={activeView}
@@ -58,7 +59,7 @@ function MainApp() {
         }}
         onOpenCreate={() => {
           if (!user) setShowAuthModal(true);
-          else setActiveView('create');
+          else if (user.account_type === 'seller' || user.is_admin) setActiveView('create');
         }}
         onOpenAssistant={() => handleOpenAssistant(null)}
         onOpenSavedSearches={() => {
@@ -95,7 +96,7 @@ function MainApp() {
             onOpenAssistant={() => handleOpenAssistant(null)}
             onOpenCreate={() => {
               if (!user) setShowAuthModal(true);
-              else setActiveView('create');
+              else if (user.account_type === 'seller' || user.is_admin) setActiveView('create');
             }}
           />
         )}
@@ -125,6 +126,8 @@ function MainApp() {
             onSelectAuction={handleSelectAuction}
           />
         )}
+
+        {activeView === 'admin' && user.is_admin && <AdminPage />}
       </main>
 
       {/* Modals */}
@@ -159,6 +162,16 @@ function MainApp() {
   );
 }
 
+function PublicApp() {
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab] = useState('login');
+  const [showBrowse, setShowBrowse] = useState(false);
+  if (showBrowse) {
+    return <><LandingPage onLogin={() => { setAuthTab('login'); setShowAuthModal(true); }} onRegister={() => { setAuthTab('register'); setShowAuthModal(true); }} onBrowse={() => setShowBrowse(false)} />{showAuthModal && <AuthModal initialTab={authTab} onClose={() => setShowAuthModal(false)} />}</>;
+  }
+  return <><LandingPage onLogin={() => { setAuthTab('login'); setShowAuthModal(true); }} onRegister={() => { setAuthTab('register'); setShowAuthModal(true); }} onBrowse={() => setShowBrowse(true)} />{showAuthModal && <AuthModal initialTab={authTab} onClose={() => setShowAuthModal(false)} />}</>;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -168,4 +181,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

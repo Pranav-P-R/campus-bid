@@ -47,8 +47,10 @@ async function initDb() {
 
   if (isPgPool) {
     await db.query(schemaSql);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_type VARCHAR(20) NOT NULL DEFAULT 'buyer'`);
   } else {
     await db.exec(schemaSql);
+    await db.exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_type VARCHAR(20) NOT NULL DEFAULT 'buyer'`);
   }
   console.log('Database schema verified & ready.');
 }
@@ -96,4 +98,3 @@ module.exports = {
   query,
   transaction
 };
-

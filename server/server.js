@@ -24,6 +24,7 @@ const savedSearchesRoutes = require('./routes/savedSearches');
 const notificationsRoutes = require('./routes/notifications');
 const assistantRoutes = require('./routes/assistant');
 const uploadRoutes = require('./routes/upload');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const server = http.createServer(app);
@@ -88,6 +89,7 @@ app.get('/api/health', (req, res) => {
 
 // Mount API routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/auctions', auctionsRoutes);
 app.use('/api/auctions', bidsRoutes);
 app.use('/api/auctions', questionsRoutes);

@@ -34,7 +34,10 @@ export function AuthProvider({ children }) {
 
     // Also fetch demo users for easy testing
     fetch('/api/auth/demo-users')
-      .then((res) => res.json())
+      .then(async (res) => {
+        const text = await res.text();
+        return text ? JSON.parse(text) : {};
+      })
       .then((data) => {
         if (data.users) setDemoUsers(data.users);
       })
@@ -93,4 +96,3 @@ export function AuthProvider({ children }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
-

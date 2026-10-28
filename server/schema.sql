@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified      BOOLEAN NOT NULL DEFAULT FALSE,
     campus_verified     BOOLEAN NOT NULL DEFAULT FALSE,
     verification_code   VARCHAR(20),
+    account_type        VARCHAR(20) NOT NULL DEFAULT 'buyer'
+                        CHECK (account_type IN ('buyer', 'seller')),
     is_admin            BOOLEAN NOT NULL DEFAULT FALSE,
     account_status      VARCHAR(20) NOT NULL DEFAULT 'active'
                         CHECK (account_status IN ('active', 'suspended', 'disabled')),
@@ -198,4 +200,3 @@ CREATE INDEX IF NOT EXISTS idx_questions_auction_created ON questions(auction_id
 CREATE INDEX IF NOT EXISTS idx_saved_searches_active ON saved_searches(is_active, notifications_on);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_auction_events_auction_created ON auction_events(auction_id, created_at);
-

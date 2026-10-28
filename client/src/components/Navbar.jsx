@@ -107,13 +107,11 @@ export default function Navbar({
           {/* Right Action buttons */}
           <div className="flex items-center gap-3">
             {/* Create Listing Button */}
-            <button
-              onClick={onOpenCreate}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-sm hover:from-amber-400 hover:to-amber-300 transition-all shadow-md shadow-amber-500/20 active:scale-95"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Sell Item</span>
-            </button>
+            {(user?.account_type === 'seller' || user?.is_admin) && (
+              <button onClick={onOpenCreate} className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-sm hover:from-amber-400 hover:to-amber-300 transition-all shadow-md shadow-amber-500/20 active:scale-95">
+                <PlusCircle className="w-4 h-4" /><span className="hidden sm:inline">Sell Item</span>
+              </button>
+            )}
 
             {/* Notification Bell */}
             {user && (
@@ -210,6 +208,7 @@ export default function Navbar({
             {/* User Profile / Auth */}
             {user ? (
               <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
+                {user.is_admin && <button onClick={() => setActiveView('admin')} className="text-xs font-bold text-emerald-300 hover:text-emerald-200">Admin</button>}
                 <div className="text-right hidden sm:block">
                   <div className="flex items-center justify-end gap-1">
                     <span className="text-xs font-bold text-white">{user.display_name}</span>
@@ -217,7 +216,7 @@ export default function Navbar({
                       <CheckCircle className="w-3.5 h-3.5 text-emerald-400" title="Verified Campus Student" />
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-400 block font-mono">{user.campus_id || 'Student'}</span>
+                  <span className="text-[10px] text-slate-400 block font-mono">{user.is_admin ? 'Administrator' : `${user.account_type === 'seller' ? 'Seller' : 'Buyer'} · ${user.campus_id || 'Campus'}`}</span>
                 </div>
 
                 <button
@@ -243,4 +242,3 @@ export default function Navbar({
     </nav>
   );
 }
-

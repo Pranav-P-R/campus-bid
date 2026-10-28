@@ -7,6 +7,9 @@ const { placeBid, setAutoBidLimit } = require('../services/auctionEngine');
 // POST /api/auctions/:id/bids (Manual bid placement)
 router.post('/:id/bids', requireAuth, async (req, res) => {
   try {
+    if (req.user.account_type !== 'buyer' && !req.user.is_admin) {
+      return res.status(403).json({ error: 'Only buyer accounts can place bids.' });
+    }
     const { id } = req.params;
     const { amount, requestKey } = req.body;
 
@@ -100,4 +103,3 @@ router.delete('/:id/auto-bid', requireAuth, async (req, res) => {
 });
 
 module.exports = router;
-

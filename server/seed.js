@@ -17,7 +17,8 @@ async function seed() {
       email: 'priya.sharma@campus.edu',
       campusId: 'CAMPUS-2024-CS042',
       passwordHash: hashedPw,
-      isAdmin: false
+      isAdmin: false,
+      accountType: 'seller'
     },
     {
       fullName: 'Rahul Verma',
@@ -25,7 +26,8 @@ async function seed() {
       email: 'rahul.verma@campus.edu',
       campusId: 'CAMPUS-2023-ME108',
       passwordHash: hashedPw,
-      isAdmin: false
+      isAdmin: false,
+      accountType: 'buyer'
     },
     {
       fullName: 'Ananya Patel',
@@ -33,7 +35,8 @@ async function seed() {
       email: 'ananya.patel@campus.edu',
       campusId: 'CAMPUS-2024-EC019',
       passwordHash: hashedPw,
-      isAdmin: false
+      isAdmin: false,
+      accountType: 'seller'
     },
     {
       fullName: 'Vikram Singh',
@@ -41,7 +44,8 @@ async function seed() {
       email: 'vikram.singh@campus.edu',
       campusId: 'CAMPUS-2023-CE077',
       passwordHash: hashedPw,
-      isAdmin: false
+      isAdmin: false,
+      accountType: 'buyer'
     },
     {
       fullName: 'Prof. Campus Admin',
@@ -49,19 +53,20 @@ async function seed() {
       email: 'admin@campus.edu',
       campusId: 'CAMPUS-FAC-001',
       passwordHash: adminPw,
-      isAdmin: true
+      isAdmin: true,
+      accountType: 'buyer'
     }
   ];
 
   const userMap = {};
   for (const u of users) {
     const res = await query(
-      `INSERT INTO users (full_name, display_name, email, password_hash, campus_id, email_verified, campus_verified, is_admin)
-       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, $6)
+      `INSERT INTO users (full_name, display_name, email, password_hash, campus_id, email_verified, campus_verified, account_type, is_admin)
+       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, $6, $7)
        ON CONFLICT (email)
-       DO UPDATE SET full_name = $1, display_name = $2, password_hash = $4, updated_at = NOW()
+       DO UPDATE SET full_name = $1, display_name = $2, password_hash = $4, account_type = $6, updated_at = NOW()
        RETURNING id, display_name, email`,
-      [u.fullName, u.displayName, u.email, u.passwordHash, u.campusId, u.isAdmin]
+      [u.fullName, u.displayName, u.email, u.passwordHash, u.campusId, u.accountType, u.isAdmin]
     );
     userMap[u.displayName] = res.rows[0];
   }
