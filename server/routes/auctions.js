@@ -421,7 +421,7 @@ router.post('/', requireAuth, async (req, res) => {
 router.patch('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, itemCondition } = req.body;
+    const { title, description, itemCondition, images } = req.body;
 
     const aucRes = await query('SELECT * FROM auctions WHERE id = $1', [id]);
     if (aucRes.rows.length === 0) return res.status(404).json({ error: 'Auction not found' });
@@ -447,7 +447,59 @@ router.patch('/:id', requireAuth, async (req, res) => {
       [updatedTitle, updatedDesc, updatedCond, id]
     );
 
-    return res.json({ message: 'Listing updated.', auction: result.rows[0] });
+    // Update images if provided
+    if (Array.isArray(images) && images.length > 0) {
+      await query('DELETE FROM auction_images WHERE auction_id = $1', [id]);
+      for (let i = 0; i < images.length; i++) {
+        if (images[i] && typeof images[i] === 'string') {
+          await query(
+            'INSERT INTO auction_images (auction_id, image_url, sort_order) VALUES ($1, $2, $3)',
+            [id, images[i].trim(), i]
+          );
+        }
+      }
+    }
+
+    // Record audit event
+    await query(
+      `INSERT INTO auction_events (auction_id, actor_id, event_type, payload)
+       VALUES ($1, $2, 'listing_edited', $3)`,
+      [
+        id,
+        req.user.id,
+        JSON.stringify({
+          updated_title: updatedTitle,
+          updated_condition: updatedCond,
+          updated_photos_count: Array.isArray(images) ? images.length : undefined
+        })
+      ]
+    );
+
+    // Fetch updated images
+    const freshImagesRes = await query(
+      `SELECT image_url FROM auction_images WHERE auction_id = $1 ORDER BY sort_order ASC`,
+      [id]
+    );
+    const freshImages = freshImagesRes.rows.map(r => r.image_url);
+
+    if (ioInstance) {
+      ioInstance.to(`auction:${id}`).emit('auction_update', {
+        auctionId: id,
+        title: updatedTitle,
+        description: updatedDesc,
+        item_condition: updatedCond,
+        images: freshImages
+      });
+      ioInstance.emit('global_auction_update', {
+        auctionId: id,
+        title: updatedTitle
+      });
+    }
+
+    return res.json({
+      message: 'Listing updated successfully.',
+      auction: { ...result.rows[0], images: freshImages }
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

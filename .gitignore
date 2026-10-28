@@ -5,6 +5,8 @@ client/node_modules/
 # Local databases and cache
 data/pglite_db/
 data/*.db
+uploads/*
+!uploads/.gitkeep
 
 # Build outputs
 client/dist/

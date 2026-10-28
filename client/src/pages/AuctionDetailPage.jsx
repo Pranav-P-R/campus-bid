@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import CountdownTimer from '../components/CountdownTimer';
 import BidModal from '../components/BidModal';
+import EditAuctionModal from '../components/EditAuctionModal';
 import {
   ArrowLeft,
   Gavel,
@@ -19,7 +20,8 @@ import {
   XCircle,
   HelpCircle,
   Send,
-  Sparkles
+  Sparkles,
+  Edit3
 } from 'lucide-react';
 
 export default function AuctionDetailPage({ auctionId, onBack, onOpenAuth, onOpenAssistant }) {
@@ -37,6 +39,7 @@ export default function AuctionDetailPage({ auctionId, onBack, onOpenAuth, onOpe
 
   // Modal controls
   const [showBidModal, setShowBidModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [questionInput, setQuestionInput] = useState('');
   const [answeringQId, setAnsweringQId] = useState(null);
   const [answerInput, setAnswerInput] = useState('');
@@ -324,6 +327,28 @@ export default function AuctionDetailPage({ auctionId, onBack, onOpenAuth, onOpe
           )}
 
           {/* Seller Profile Card */}
+          {isSeller && !isClosed && !isCancelled && (
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="ml-2 text-xs font-semibold text-slate-300 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-1"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+              Edit
+            </button>
+          )}
+          
+          {/* Edit Auction Modal */}
+          {showEditModal && (
+            <EditAuctionModal
+              auction={auction}
+              onClose={() => setShowEditModal(false)}
+              onSuccess={(updatedAuction) => {
+                setAuction(updatedAuction);
+                // Refresh other related state if needed
+                fetchAuctionDetails();
+              }}
+            />
+          )}
           <div className="p-4 rounded-2xl bg-slate-900/70 border border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-amber-400 font-bold">
@@ -345,7 +370,7 @@ export default function AuctionDetailPage({ auctionId, onBack, onOpenAuth, onOpe
               className="text-xs font-semibold text-slate-300 hover:text-white px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-1"
             >
               <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
-              Ask Seller
+              Ask the seller
             </button>
           </div>
         </div>

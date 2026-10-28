@@ -1,6 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Plus, Image as ImageIcon, Sparkles, Check, AlertCircle } from 'lucide-react';
+import {
+  ArrowLeft,
+  Plus,
+  Upload,
+  Image as ImageIcon,
+  Sparkles,
+  Check,
+  AlertCircle,
+  Trash2,
+  Tag
+} from 'lucide-react';
 
 export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
   const { user, token } = useAuth();
@@ -15,16 +25,26 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
   const [durationHours, setDurationHours] = useState('24');
   const [imageUrl, setImageUrl] = useState('');
   const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Sample photo presets for fast demo creation
+  // Category-specific high-resolution default photos
+  const categoryDefaultPhotos = {
+    cycles: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80',
+    calculators: 'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?auto=format&fit=crop&w=800&q=80',
+    books: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80',
+    electronics: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=800&q=80',
+    'hostel-items': 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=800&q=80',
+    other: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=800&q=80'
+  };
+
   const presets = [
-    { label: '🚲 Cycle', url: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80' },
-    { label: '🔢 Calculator', url: 'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?auto=format&fit=crop&w=800&q=80' },
-    { label: '📚 Textbook', url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80' },
-    { label: '🎧 Electronics', url: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=800&q=80' },
-    { label: '🛏️ Hostel Item', url: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=800&q=80' }
+    { label: '🔢 Scientific Calculator', slug: 'calculators', url: categoryDefaultPhotos.calculators },
+    { label: '🚲 Cycle', slug: 'cycles', url: categoryDefaultPhotos.cycles },
+    { label: '📚 Engineering Book', slug: 'books', url: categoryDefaultPhotos.books },
+    { label: '🎧 Electronics / Mouse', slug: 'electronics', url: categoryDefaultPhotos.electronics },
+    { label: '🛏️ Mini Fridge / Hostel', slug: 'hostel-items', url: categoryDefaultPhotos['hostel-items'] }
   ];
 
   useEffect(() => {
@@ -39,11 +59,49 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
       .catch(console.error);
   }, []);
 
-  const handleAddImage = () => {
+  const handleFileUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append('photos', files[i]);
+    }
+
+    try {
+      setUploading(true);
+      setError('');
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      if (data.urls && data.urls.length > 0) {
+        setImages((prev) => [...prev, ...data.urls]);
+      }
+    } catch (err) {
+      setError(`File upload failed: ${err.message}`);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddImageUrl = () => {
     if (imageUrl.trim()) {
       setImages([...images, imageUrl.trim()]);
       setImageUrl('');
     }
+  };
+
+  const handleRemoveImage = (indexToRemove) => {
+    setImages(images.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleSubmit = async (e) => {
@@ -66,7 +124,14 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
       return;
     }
 
-    const finalImages = images.length > 0 ? images : (imageUrl.trim() ? [imageUrl.trim()] : [presets[0].url]);
+    // Determine fallback photo based on selected category!
+    const selectedCat = categories.find((c) => c.id.toString() === categoryId);
+    const categorySlug = selectedCat?.slug || 'other';
+    const fallbackPhoto = categoryDefaultPhotos[categorySlug] || categoryDefaultPhotos.other;
+
+    const finalImages = images.length > 0
+      ? images
+      : (imageUrl.trim() ? [imageUrl.trim()] : [fallbackPhoto]);
 
     try {
       setLoading(true);
@@ -99,6 +164,11 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
     }
   };
 
+  // Compute active preview image
+  const selectedCat = categories.find((c) => c.id.toString() === categoryId);
+  const activeFallback = categoryDefaultPhotos[selectedCat?.slug] || categoryDefaultPhotos.other;
+  const previewImage = images.length > 0 ? images[0] : (imageUrl.trim() || activeFallback);
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-20">
       <button
@@ -113,7 +183,7 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
         <div>
           <h2 className="text-2xl font-extrabold text-white">Create a Campus Auction</h2>
           <p className="text-xs text-slate-400 mt-1">
-            List your item with starting price and minimum increment. Active peer bids decide the final fair market value!
+            List your item with your photos, starting price, and minimum increment. Active peer bids decide the final fair value!
           </p>
         </div>
 
@@ -124,7 +194,7 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div>
             <label className="text-xs text-slate-300 font-semibold block mb-1.5">
@@ -133,7 +203,7 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
             <input
               type="text"
               required
-              placeholder="e.g. Hero Sprint Pro 21-Speed Gear Cycle or Casio fx-991EX Calculator"
+              placeholder="e.g. Casio fx-991EX Scientific Calculator or Hero Sprint Pro Cycle"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
@@ -190,7 +260,7 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
                   step="0.01"
                   min="1"
                   required
-                  placeholder="500.00"
+                  placeholder="300.00"
                   value={startingPrice}
                   onChange={(e) => setStartingPrice(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-4 py-2 text-white font-mono text-base font-bold focus:outline-none focus:border-amber-400"
@@ -210,7 +280,7 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
                   step="0.01"
                   min="1"
                   required
-                  placeholder="50.00"
+                  placeholder="25.00"
                   value={minBidIncrement}
                   onChange={(e) => setMinBidIncrement(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-4 py-2 text-white font-mono text-base font-bold focus:outline-none focus:border-amber-400"
@@ -256,73 +326,119 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
             <textarea
               required
               rows={4}
-              placeholder="Describe condition, working accessories, semester of use, and preferred campus pickup spots..."
+              placeholder="Describe model number, working accessories, condition, and preferred campus pickup spots (e.g. Central Library, Hostel 4)..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full bg-slate-950 border border-slate-700 rounded-xl p-3.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 leading-relaxed"
             />
           </div>
 
-          {/* Photos */}
-          <div>
-            <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-              Item Photo URLs (Cloud Object Storage URLs)
-            </label>
-
-            {/* Presets */}
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="text-[11px] text-slate-400">Quick presets:</span>
-              {presets.map((p, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setImages([...images, p.url])}
-                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700"
-                >
-                  {p.label}
-                </button>
-              ))}
+          {/* Photos: Upload from Device + Presets + Preview */}
+          <div className="p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-4">
+            <div>
+              <label className="text-xs text-white font-bold block mb-1">
+                Item Photos
+              </label>
+              <p className="text-[11px] text-slate-400">
+                Upload real photos from your computer/phone, choose a category sample, or paste an image URL.
+              </p>
             </div>
 
+            {/* Direct Device Upload Button */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-2 border-dashed border-amber-500/40 rounded-xl cursor-pointer transition-colors text-xs font-bold shadow-sm">
+                <Upload className="w-4 h-4 text-amber-400" />
+                <span>{uploading ? 'Uploading your photos...' : '📁 Upload Photos from Computer / Phone'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  disabled={uploading}
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {/* Or Paste URL */}
             <div className="flex gap-2">
               <input
                 type="url"
-                placeholder="Paste direct image link (https://...)"
+                placeholder="Or paste direct image URL (https://...)"
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
-                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
               />
               <button
                 type="button"
-                onClick={handleAddImage}
+                onClick={handleAddImageUrl}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700"
               >
-                Add URL
+                Add Link
               </button>
             </div>
 
-            {/* Image Preview Pills */}
-            {images.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {images.map((img, i) => (
-                  <div key={i} className="relative group w-16 h-16 rounded-xl overflow-hidden border border-slate-700">
-                    <img src={img} alt="preview" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setImages(images.filter((_, idx) => idx !== i))}
-                      className="absolute inset-0 bg-rose-950/80 text-rose-300 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity font-bold"
-                    >
-                      Remove
-                    </button>
-                  </div>
+            {/* Category Presets */}
+            <div>
+              <span className="text-[11px] text-slate-400 block mb-1.5">Or click a sample photo for quick demo testing:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {presets.map((p, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setImages([...images, p.url])}
+                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition-colors"
+                  >
+                    {p.label}
+                  </button>
                 ))}
               </div>
-            )}
+            </div>
+
+            {/* Current Selected Photos Gallery */}
+            <div>
+              <span className="text-xs font-semibold text-slate-300 block mb-2">
+                Photos to be displayed on listing ({images.length > 0 ? images.length : 1}):
+              </span>
+
+              <div className="flex flex-wrap gap-3">
+                {images.length > 0 ? (
+                  images.map((img, i) => (
+                    <div
+                      key={i}
+                      className="relative group w-24 h-24 rounded-2xl overflow-hidden border-2 border-slate-700 bg-slate-900"
+                    >
+                      <img src={img} alt={`Uploaded ${i}`} className="w-full h-full object-cover" />
+                      {i === 0 && (
+                        <span className="absolute bottom-1.5 left-1.5 bg-amber-500 text-slate-950 font-extrabold text-[9px] px-1.5 py-0.5 rounded shadow">
+                          PRIMARY
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(i)}
+                        className="absolute inset-0 bg-rose-950/80 text-rose-300 text-xs font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-amber-500/50 bg-slate-900">
+                    <img src={previewImage} alt="Auto category fallback" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-1.5 left-1.5 bg-slate-950/80 text-amber-300 font-bold text-[9px] px-1.5 py-0.5 rounded">
+                      Category Default
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || uploading}
             className="w-full py-3.5 rounded-xl font-extrabold text-sm bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 hover:from-amber-400 hover:to-amber-300 transition-all shadow-xl shadow-amber-500/20 active:scale-95 disabled:opacity-50"
           >
             {loading ? 'Publishing Auction...' : 'Publish Item to Campus Marketplace'}
@@ -332,4 +448,3 @@ export default function CreateAuctionPage({ onBack, onSuccess, onOpenAuth }) {
     </div>
   );
 }
-

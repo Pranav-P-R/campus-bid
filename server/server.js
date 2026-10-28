@@ -23,6 +23,7 @@ const { router: salesRoutes, setSocketIo: setSalesSocketIo } = require('./routes
 const savedSearchesRoutes = require('./routes/savedSearches');
 const notificationsRoutes = require('./routes/notifications');
 const assistantRoutes = require('./routes/assistant');
+const uploadRoutes = require('./routes/upload');
 
 const app = express();
 const server = http.createServer(app);
@@ -94,6 +95,11 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/saved-searches', savedSearchesRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/assistant', assistantRoutes);
+app.use('/api/upload', uploadRoutes);
+
+// Serve uploaded photos statically
+const uploadsPath = path.resolve(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 // Serve static frontend build if it exists
 const distPath = path.resolve(__dirname, '../client/dist');
