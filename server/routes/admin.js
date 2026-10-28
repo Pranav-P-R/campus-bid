@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { query } = require('../db');
+const { query, transaction } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 
 router.use(requireAdmin);
@@ -78,13 +78,78 @@ router.patch('/auctions/:id/status', async (req, res) => {
     return res.status(400).json({ error: 'Admins may only activate or cancel auctions.' });
   }
   try {
+    const result = await transaction(async (tx) => {
+      const auctionResult = await tx.query(
+        `UPDATE auctions SET status = $1, cancellation_reason = CASE WHEN $1 = 'cancelled' THEN 'Cancelled by campus administrator' ELSE NULL END,
+         updated_at = NOW() WHERE id = $2 RETURNING id, status, seller_id`,
+        [status, req.params.id]
+      );
+      if (auctionResult.rows.length === 0) return null;
+
+      if (status === 'cancelled') {
+        await tx.query(
+          `UPDATE sales
+           SET status = 'cancelled', failure_reason = 'Blocked by campus administrator', updated_at = NOW()
+           WHERE auction_id = $1 AND status IN ('pending_seller_approval', 'reserved')`,
+          [req.params.id]
+        );
+        await tx.query(
+          `INSERT INTO auction_events (auction_id, actor_id, event_type, payload)
+           VALUES ($1, $2, 'admin_auction_cancelled', $3)`,
+          [req.params.id, req.user.id, JSON.stringify({ reason: 'Blocked by campus administrator' })]
+        );
+      }
+      return auctionResult.rows[0];
+    });
+    if (!result) return res.status(404).json({ error: 'Auction not found.' });
+    return res.json({ auction: result });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/sales', async (req, res) => {
+  try {
     const result = await query(
-      `UPDATE auctions SET status = $1, cancellation_reason = CASE WHEN $1 = 'cancelled' THEN 'Cancelled by campus administrator' ELSE NULL END,
-       updated_at = NOW() WHERE id = $2 RETURNING id, status`,
-      [status, req.params.id]
+      `SELECT s.id, s.auction_id, s.status, s.final_price, s.failure_reason, s.created_at,
+              a.title AS auction_title, seller.display_name AS seller_name,
+              buyer.display_name AS buyer_name
+       FROM sales s
+       JOIN auctions a ON a.id = s.auction_id
+       JOIN users seller ON seller.id = s.seller_id
+       LEFT JOIN users buyer ON buyer.id = s.buyer_id
+       ORDER BY s.created_at DESC LIMIT 100`
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Auction not found.' });
-    return res.json({ auction: result.rows[0] });
+    return res.json({ sales: result.rows });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.patch('/sales/:id/status', async (req, res) => {
+  if (req.body.status !== 'cancelled') {
+    return res.status(400).json({ error: 'Admins may only block an in-progress transaction.' });
+  }
+  try {
+    const result = await transaction(async (tx) => {
+      const saleResult = await tx.query(
+        `UPDATE sales
+         SET status = 'cancelled', failure_reason = 'Blocked by campus administrator', updated_at = NOW()
+         WHERE id = $1 AND status IN ('pending_seller_approval', 'reserved')
+         RETURNING id, auction_id, status, failure_reason`,
+        [req.params.id]
+      );
+      if (saleResult.rows.length === 0) return null;
+      const sale = saleResult.rows[0];
+      await tx.query(
+        `INSERT INTO auction_events (auction_id, actor_id, event_type, payload)
+         VALUES ($1, $2, 'admin_transaction_blocked', $3)`,
+        [sale.auction_id, req.user.id, JSON.stringify({ saleId: sale.id, reason: sale.failure_reason })]
+      );
+      return sale;
+    });
+    if (!result) return res.status(404).json({ error: 'Only pending or reserved transactions can be blocked.' });
+    return res.json({ sale: result });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

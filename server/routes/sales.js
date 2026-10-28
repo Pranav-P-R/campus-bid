@@ -124,7 +124,7 @@ router.post('/:id/decision', requireAuth, async (req, res) => {
       if (saleRes.rows.length === 0) throw new Error('Sale not found');
       const sale = saleRes.rows[0];
 
-      if (sale.seller_id !== req.user.id && !req.user.is_admin) {
+      if (sale.seller_id !== req.user.id) {
         throw new Error('Only the seller can approve or reject the sale outcome.');
       }
 
@@ -212,7 +212,7 @@ router.post('/:id/handover-confirmations', requireAuth, async (req, res) => {
       if (saleRes.rows.length === 0) throw new Error('Sale not found');
       saleRecord = saleRes.rows[0];
 
-      if (saleRecord.seller_id !== req.user.id && saleRecord.buyer_id !== req.user.id && !req.user.is_admin) {
+      if (saleRecord.seller_id !== req.user.id && saleRecord.buyer_id !== req.user.id) {
         throw new Error('Only the buyer or seller can confirm item handover.');
       }
 
@@ -297,7 +297,7 @@ router.post('/:id/fail-pickup', requireAuth, async (req, res) => {
       if (saleRes.rows.length === 0) throw new Error('Sale not found');
       const sale = saleRes.rows[0];
 
-      if (sale.seller_id !== req.user.id && sale.buyer_id !== req.user.id && !req.user.is_admin) {
+      if (sale.seller_id !== req.user.id && sale.buyer_id !== req.user.id) {
         throw new Error('Unauthorized');
       }
 
@@ -329,4 +329,3 @@ module.exports = {
   router,
   setSocketIo
 };
-
