@@ -59,7 +59,7 @@ function MainApp() {
         }}
         onOpenCreate={() => {
           if (!user) setShowAuthModal(true);
-          else if (user.account_type === 'seller' || user.is_admin) setActiveView('create');
+          else if (user.account_type === 'seller' && !user.is_admin) setActiveView('create');
         }}
         onOpenAssistant={() => handleOpenAssistant(null)}
         onOpenSavedSearches={() => {
@@ -96,7 +96,7 @@ function MainApp() {
             onOpenAssistant={() => handleOpenAssistant(null)}
             onOpenCreate={() => {
               if (!user) setShowAuthModal(true);
-              else if (user.account_type === 'seller' || user.is_admin) setActiveView('create');
+              else if (user.account_type === 'seller' && !user.is_admin) setActiveView('create');
             }}
           />
         )}

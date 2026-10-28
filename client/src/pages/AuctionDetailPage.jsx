@@ -244,6 +244,7 @@ export default function AuctionDetailPage({ auctionId, onBack, onOpenAuth, onOpe
   const isClosed = auction.status === 'closed' || new Date(auction.end_time) <= new Date();
   const isCancelled = auction.status === 'cancelled';
   const isSeller = user && user.id === auction.seller_id;
+  const isAdmin = user?.is_admin;
   const isLeadingBidder = user && user.id === auction.current_high_bidder_id;
   const minRequiredNext = isStarted ? currentPrice + parseFloat(auction.min_bid_increment) : currentPrice;
 
@@ -454,7 +455,11 @@ export default function AuctionDetailPage({ auctionId, onBack, onOpenAuth, onOpe
             <div className="space-y-2">
               {!isClosed && !isCancelled && (
                 <>
-                  {isSeller ? (
+                  {isAdmin ? (
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
+                      Administrator accounts are restricted to marketplace moderation and cannot bid or sell.
+                    </div>
+                  ) : isSeller ? (
                     <div className="space-y-2">
                       <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
                         This is your listing. Sellers cannot place bids on their own items.
@@ -801,4 +806,3 @@ export default function AuctionDetailPage({ auctionId, onBack, onOpenAuth, onOpe
     </div>
   );
 }
-

@@ -291,8 +291,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
 // POST /api/auctions (Publish new listing)
 router.post('/', requireAuth, async (req, res) => {
   try {
-    if (req.user.account_type !== 'seller' && !req.user.is_admin) {
-      return res.status(403).json({ error: 'Only seller accounts can publish auctions.' });
+    if (req.user.is_admin || req.user.account_type !== 'seller') {
+      return res.status(403).json({ error: 'Campus administrators cannot create auction listings.' });
     }
     const {
       title,

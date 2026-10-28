@@ -26,6 +26,9 @@ export default function AuthModal({ onClose, initialTab = 'login' }) {
 
   const readResponse = async (res) => {
     const text = await res.text();
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+      throw new Error('CampusBid server is unavailable. Start the API with npm start, then try again.');
+    }
     let data;
     try {
       data = text ? JSON.parse(text) : {};
@@ -35,6 +38,12 @@ export default function AuthModal({ onClose, initialTab = 'login' }) {
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status}).`);
     return data;
   };
+
+  const getRequestError = (err) => (
+    err instanceof TypeError
+      ? 'CampusBid server is unavailable. Start the API with npm start, then try again.'
+      : err.message
+  );
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -53,7 +62,7 @@ export default function AuthModal({ onClose, initialTab = 'login' }) {
       login(data.token, data.user);
       onClose();
     } catch (err) {
-      setError(err.message);
+      setError(getRequestError(err));
     } finally {
       setLoading(false);
     }
@@ -88,7 +97,7 @@ export default function AuthModal({ onClose, initialTab = 'login' }) {
         onClose();
       }
     } catch (err) {
-      setError(err.message);
+      setError(getRequestError(err));
     } finally {
       setLoading(false);
     }
@@ -113,7 +122,7 @@ export default function AuthModal({ onClose, initialTab = 'login' }) {
 
       onClose();
     } catch (err) {
-      setError(err.message);
+      setError(getRequestError(err));
     } finally {
       setLoading(false);
     }

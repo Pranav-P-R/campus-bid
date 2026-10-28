@@ -70,7 +70,7 @@ export default function Navbar({
                 Browse Auctions
               </button>
 
-              {user && (
+              {user && !user.is_admin && (
                 <button
                   onClick={() => setActiveView('sales')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -92,7 +92,7 @@ export default function Navbar({
                 AI Assistant
               </button>
 
-              {user && (
+              {user && !user.is_admin && (
                 <button
                   onClick={onOpenSavedSearches}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800/60 transition-colors"
@@ -107,7 +107,7 @@ export default function Navbar({
           {/* Right Action buttons */}
           <div className="flex items-center gap-3">
             {/* Create Listing Button */}
-            {(user?.account_type === 'seller' || user?.is_admin) && (
+            {user?.account_type === 'seller' && !user?.is_admin && (
               <button onClick={onOpenCreate} className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold px-3.5 py-1.5 rounded-lg text-sm hover:from-amber-400 hover:to-amber-300 transition-all shadow-md shadow-amber-500/20 active:scale-95">
                 <PlusCircle className="w-4 h-4" /><span className="hidden sm:inline">Sell Item</span>
               </button>

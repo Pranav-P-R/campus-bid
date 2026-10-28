@@ -7,8 +7,8 @@ const { placeBid, setAutoBidLimit } = require('../services/auctionEngine');
 // POST /api/auctions/:id/bids (Manual bid placement)
 router.post('/:id/bids', requireAuth, async (req, res) => {
   try {
-    if (req.user.account_type !== 'buyer' && !req.user.is_admin) {
-      return res.status(403).json({ error: 'Only buyer accounts can place bids.' });
+    if (req.user.is_admin || req.user.account_type !== 'buyer') {
+      return res.status(403).json({ error: 'Campus administrators cannot participate in auctions.' });
     }
     const { id } = req.params;
     const { amount, requestKey } = req.body;
