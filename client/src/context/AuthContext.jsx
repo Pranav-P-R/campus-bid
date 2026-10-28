@@ -1,11 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
+const TOKEN_KEY = 'campusbid_token';
+
+function getStoredToken() {
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || '';
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  // sessionStorage is scoped to one browser tab, so separate tabs can use separate accounts.
-  const [token, setToken] = useState(sessionStorage.getItem('campusbid_token') || '');
+  const [token, setToken] = useState(getStoredToken);
   const [loading, setLoading] = useState(true);
   const [demoUsers, setDemoUsers] = useState([]);
 
@@ -23,10 +27,13 @@ export function AuthProvider({ children }) {
           setUser(data.user);
           setLoading(false);
         })
-        .catch(() => {
-          sessionStorage.removeItem('campusbid_token');
-          setToken('');
-          setUser(null);
+        .catch((error) => {
+          if (error.message === 'Session expired') {
+            localStorage.removeItem(TOKEN_KEY);
+            sessionStorage.removeItem(TOKEN_KEY);
+            setToken('');
+            setUser(null);
+          }
           setLoading(false);
         });
     } else {
@@ -46,13 +53,15 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const login = (newToken, newUser) => {
-    sessionStorage.setItem('campusbid_token', newToken);
+    localStorage.setItem(TOKEN_KEY, newToken);
+    sessionStorage.removeItem(TOKEN_KEY);
     setToken(newToken);
     setUser(newUser);
   };
 
   const logout = () => {
-    sessionStorage.removeItem('campusbid_token');
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
     setToken('');
     setUser(null);
   };
