@@ -4,7 +4,8 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('campusbid_token') || '');
+  // sessionStorage is scoped to one browser tab, so separate tabs can use separate accounts.
+  const [token, setToken] = useState(sessionStorage.getItem('campusbid_token') || '');
   const [loading, setLoading] = useState(true);
   const [demoUsers, setDemoUsers] = useState([]);
 
@@ -23,7 +24,7 @@ export function AuthProvider({ children }) {
           setLoading(false);
         })
         .catch(() => {
-          localStorage.removeItem('campusbid_token');
+          sessionStorage.removeItem('campusbid_token');
           setToken('');
           setUser(null);
           setLoading(false);
@@ -45,13 +46,13 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const login = (newToken, newUser) => {
-    localStorage.setItem('campusbid_token', newToken);
+    sessionStorage.setItem('campusbid_token', newToken);
     setToken(newToken);
     setUser(newUser);
   };
 
   const logout = () => {
-    localStorage.removeItem('campusbid_token');
+    sessionStorage.removeItem('campusbid_token');
     setToken('');
     setUser(null);
   };

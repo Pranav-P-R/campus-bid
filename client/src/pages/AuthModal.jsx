@@ -104,7 +104,7 @@ export default function AuthModal({ onClose, initialTab = 'login' }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('campusbid_token')}`
+          Authorization: `Bearer ${sessionStorage.getItem('campusbid_token')}`
         },
         body: JSON.stringify({ code: verifyCode.trim() })
       });
