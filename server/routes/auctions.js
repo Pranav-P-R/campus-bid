@@ -336,7 +336,11 @@ router.post('/', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Closing date/time must be in the future.' });
       }
     } else {
-      calculatedEndTime = new Date(Date.now() + Math.max(1, parseFloat(durationHours)) * 3600000);
+      const duration = parseFloat(durationHours);
+      if (!Number.isFinite(duration) || duration <= 0) {
+        return res.status(400).json({ error: 'Auction duration must be a positive number of hours.' });
+      }
+      calculatedEndTime = new Date(Date.now() + duration * 3600000);
     }
 
     let newAuction = null;
