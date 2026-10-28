@@ -1,9 +1,38 @@
 const path = require('path');
 const fs = require('fs');
+const { PGlite } = require('@electric-sql/pglite');
 require('dotenv').config();
 
 let dbClient = null;
 let isPgPool = false;
+
+function hasStalePgliteLock(dataDir) {
+  const lockPath = path.join(dataDir, 'postmaster.pid');
+  if (!fs.existsSync(lockPath)) return false;
+
+  const firstLine = fs.readFileSync(lockPath, 'utf8').split(/\r?\n/, 1)[0].trim();
+  return firstLine === '-42';
+}
+
+async function openPglite(dataDir) {
+  let pglite = new PGlite(dataDir);
+
+  try {
+    await pglite.waitReady;
+    return pglite;
+  } catch (err) {
+    if (!hasStalePgliteLock(dataDir)) throw err;
+
+    const lockPath = path.join(dataDir, 'postmaster.pid');
+    await pglite.close();
+    fs.unlinkSync(lockPath);
+    console.warn('Removed stale PGlite lock file and retrying database startup.');
+
+    pglite = new PGlite(dataDir);
+    await pglite.waitReady;
+    return pglite;
+  }
+}
 
 async function getDb() {
   if (dbClient) return dbClient;
@@ -26,14 +55,12 @@ async function getDb() {
   }
 
   // Fallback to embedded persistent PGlite
-  const { PGlite } = require('@electric-sql/pglite');
   const dataDir = path.resolve(__dirname, '../data/pglite_db');
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
 
-  const pglite = new PGlite(dataDir);
-  await pglite.waitReady;
+  const pglite = await openPglite(dataDir);
   console.log('Connected to embedded PostgreSQL (PGlite) persistent database at', dataDir);
   dbClient = pglite;
   isPgPool = false;
