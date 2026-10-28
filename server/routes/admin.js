@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { query, transaction } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
+const { createNotification, notifyAdmins } = require('../services/notificationService');
 
 router.use(requireAdmin);
 
@@ -80,8 +81,8 @@ router.patch('/auctions/:id/status', async (req, res) => {
   try {
     const result = await transaction(async (tx) => {
       const auctionResult = await tx.query(
-        `UPDATE auctions SET status = $1, cancellation_reason = CASE WHEN $1 = 'cancelled' THEN 'Cancelled by campus administrator' ELSE NULL END,
-         updated_at = NOW() WHERE id = $2 RETURNING id, status, seller_id`,
+        `UPDATE auctions SET status = $1::varchar, cancellation_reason = CASE WHEN $1::varchar = 'cancelled' THEN 'Cancelled by campus administrator' ELSE NULL END,
+         updated_at = NOW() WHERE id = $2 RETURNING id, status, seller_id, title`,
         [status, req.params.id]
       );
       if (auctionResult.rows.length === 0) return null;
@@ -102,6 +103,24 @@ router.patch('/auctions/:id/status', async (req, res) => {
       return auctionResult.rows[0];
     });
     if (!result) return res.status(404).json({ error: 'Auction not found.' });
+
+    if (status === 'cancelled') {
+      await createNotification({
+        userId: result.seller_id,
+        notificationType: 'auction_cancelled_by_admin',
+        title: 'Listing Cancelled by Administrator',
+        body: `Your listing "${result.title}" was cancelled by a campus administrator.`,
+        auctionId: result.id
+      });
+      await notifyAdmins({
+        notificationType: 'auction_moderated',
+        title: 'Auction Listing Cancelled',
+        body: `The listing "${result.title}" was cancelled by ${req.user.display_name}.`,
+        auctionId: result.id,
+        excludeUserId: req.user.id
+      });
+    }
+
     return res.json({ auction: result });
   } catch (err) {
     return res.status(500).json({ error: err.message });

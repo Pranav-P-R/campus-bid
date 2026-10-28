@@ -21,10 +21,15 @@ export default function AdminPage() {
   };
   useEffect(() => { load(); }, [token]);
   const update = async (url, body) => {
-    const response = await fetch(url, { method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error);
-    load();
+    try {
+      setError('');
+      const response = await fetch(url, { method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Moderation action failed.');
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   if (error) return <div className="p-8 text-rose-300">{error}</div>;

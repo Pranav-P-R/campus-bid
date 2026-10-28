@@ -1,6 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
 const { transaction, query } = require('../db');
-const { notifyOutbid } = require('./notificationService');
+const {
+  notifyAdmins,
+  notifyBidderBidAccepted,
+  notifyOutbid,
+  notifySellerBidReceived
+} = require('./notificationService');
 
 let ioInstance = null;
 
@@ -19,6 +24,7 @@ async function placeBid({ auctionId, bidderId, amount, bidType = 'manual', autoB
 
   const reqKey = requestKey || uuidv4();
   let previousHighBidderId = null;
+  let sellerId = null;
   let auctionTitle = '';
   let updatedAuction = null;
   let wasExtended = false;
@@ -43,6 +49,7 @@ async function placeBid({ auctionId, bidderId, amount, bidType = 'manual', autoB
 
     const auction = auctionRes.rows[0];
     auctionTitle = auction.title;
+    sellerId = auction.seller_id;
     previousHighBidderId = auction.current_high_bidder_id;
 
     // 2. Validate auction status
@@ -161,18 +168,42 @@ async function placeBid({ auctionId, bidderId, amount, bidType = 'manual', autoB
   const bidderRes = await query('SELECT display_name FROM users WHERE id = $1', [bidderId]);
   const bidderDisplayName = bidderRes.rows[0]?.display_name || 'Anonymous Student';
 
-  // 2. Notify previous high bidder that they were outbid
+  // 2. Notify the bidder, seller, and administrators immediately after acceptance.
+  await Promise.all([
+    notifyBidderBidAccepted({
+      userId: bidderId,
+      auctionId,
+      auctionTitle,
+      amount: numericAmount,
+      isAutomatic: bidType === 'automatic'
+    }),
+    notifySellerBidReceived({
+      userId: sellerId,
+      auctionId,
+      auctionTitle,
+      amount: numericAmount,
+      bidderName: bidderDisplayName
+    }),
+    notifyAdmins({
+      notificationType: 'bid_received',
+      title: 'New Bid Received',
+      body: `${bidderDisplayName} bid ₹${numericAmount.toFixed(2)} on "${auctionTitle}".`,
+      auctionId
+    })
+  ]);
+
+  // 3. Notify previous high bidder that they were outbid
   if (previousHighBidderId && previousHighBidderId !== bidderId) {
-    notifyOutbid({
+    await notifyOutbid({
       userId: previousHighBidderId,
       auctionId,
       auctionTitle,
       newPrice: numericAmount,
       currentLeaderName: bidderDisplayName
-    }).catch(err => console.error('Failed to send outbid notification:', err));
+    });
   }
 
-  // 3. Broadcast real-time update via Socket.IO
+  // 4. Broadcast real-time update via Socket.IO
   if (ioInstance) {
     const payload = {
       auctionId,
@@ -198,7 +229,7 @@ async function placeBid({ auctionId, bidderId, amount, bidType = 'manual', autoB
     });
   }
 
-  // 4. Trigger auto-bid evaluation if any other user has set an automatic bid limit
+  // 5. Trigger auto-bid evaluation if any other user has set an automatic bid limit
   triggerAutoBids(auctionId, bidderId, numericAmount).catch(err => {
     console.error('Error during auto-bid evaluation:', err.message);
   });
@@ -327,4 +358,3 @@ module.exports = {
   placeBid,
   setAutoBidLimit
 };
-

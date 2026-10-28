@@ -2,7 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { query, transaction } = require('../db');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
-const { notifySavedSearchMatch } = require('../services/notificationService');
+const {
+  createNotification,
+  notifyAdmins,
+  notifySavedSearchMatch
+} = require('../services/notificationService');
 
 let ioInstance = null;
 function setSocketIo(io) {
@@ -400,6 +404,14 @@ router.post('/', requireAuth, async (req, res) => {
     matchSavedSearches(newAuction).catch(err => {
       console.error('Error matching saved searches:', err);
     });
+    notifyAdmins({
+      notificationType: 'new_auction_for_review',
+      title: 'New Auction Listing Published',
+      body: `${req.user.display_name} published "${newAuction.title}" for campus review.`,
+      auctionId: newAuction.id
+    }).catch(err => {
+      console.error('Error notifying administrators about new auction:', err);
+    });
 
     if (ioInstance) {
       ioInstance.emit('new_auction_published', {
@@ -560,6 +572,27 @@ router.post('/:id/cancel', requireAuth, async (req, res) => {
       ioInstance.to(`auction:${id}`).emit('auction_cancelled', { auctionId: id, reason });
       ioInstance.emit('global_auction_update', { auctionId: id, status: 'cancelled' });
     }
+
+    const bidderRes = await query(
+      `SELECT DISTINCT bidder_id
+       FROM bids
+       WHERE auction_id = $1 AND bidder_id <> $2`,
+      [id, req.user.id]
+    );
+    await Promise.all(bidderRes.rows.map((bidder) => createNotification({
+      userId: bidder.bidder_id,
+      notificationType: 'auction_cancelled',
+      title: 'Auction Cancelled',
+      body: `The auction "${cancelledAuction.title}" was cancelled. Reason: ${reason}`,
+      auctionId: id
+    })));
+    await notifyAdmins({
+      notificationType: 'auction_cancelled',
+      title: 'Auction Cancelled',
+      body: `The listing "${cancelledAuction.title}" was cancelled by ${req.user.display_name}.`,
+      auctionId: id,
+      excludeUserId: req.user.is_admin ? req.user.id : null
+    });
 
     return res.json({ message: 'Auction cancelled successfully.', auction: cancelledAuction });
   } catch (err) {

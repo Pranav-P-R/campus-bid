@@ -27,7 +27,9 @@ export function SocketProvider({ children }) {
   // When user signs in or switches, authenticate socket session and fetch notifications
   useEffect(() => {
     if (socket && token && user) {
-      socket.emit('auth_user', token);
+      const authenticateSocket = () => socket.emit('auth_user', token);
+      authenticateSocket();
+      socket.on('connect', authenticateSocket);
 
       // Fetch existing notifications
       fetch('/api/notifications', {
@@ -67,6 +69,7 @@ export function SocketProvider({ children }) {
       socket.on('new_notification', handleNewNotification);
 
       return () => {
+        socket.off('connect', authenticateSocket);
         socket.off('new_notification', handleNewNotification);
       };
     } else {
@@ -136,4 +139,3 @@ export function SocketProvider({ children }) {
 export function useSocket() {
   return useContext(SocketContext);
 }
-

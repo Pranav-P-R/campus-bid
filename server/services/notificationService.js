@@ -39,6 +39,26 @@ async function notifyOutbid({ userId, auctionId, auctionTitle, newPrice, current
   });
 }
 
+async function notifyBidderBidAccepted({ userId, auctionId, auctionTitle, amount, isAutomatic = false }) {
+  return createNotification({
+    userId,
+    notificationType: 'bid_accepted',
+    title: isAutomatic ? 'Automatic Bid Placed' : 'Bid Placed Successfully',
+    body: `Your ${isAutomatic ? 'automatic ' : ''}bid of ₹${parseFloat(amount).toFixed(2)} was accepted for "${auctionTitle}".`,
+    auctionId
+  });
+}
+
+async function notifySellerBidReceived({ userId, auctionId, auctionTitle, amount, bidderName }) {
+  return createNotification({
+    userId,
+    notificationType: 'bid_received',
+    title: 'New Bid Received',
+    body: `${bidderName} placed a bid of ₹${parseFloat(amount).toFixed(2)} on "${auctionTitle}".`,
+    auctionId
+  });
+}
+
 async function notifyAuctionWonBuyer({ buyerId, auctionId, saleId, auctionTitle, finalPrice }) {
   return createNotification({
     userId: buyerId,
@@ -107,14 +127,36 @@ async function notifySavedSearchMatch({ userId, auctionId, auctionTitle, startin
   });
 }
 
+async function notifyAdmins({ notificationType, title, body, auctionId = null, saleId = null, excludeUserId = null }) {
+  const admins = await query(
+    `SELECT id
+     FROM users
+     WHERE is_admin = TRUE
+       AND account_status = 'active'
+       AND ($1::uuid IS NULL OR id <> $1::uuid)`,
+    [excludeUserId]
+  );
+
+  return Promise.all(admins.rows.map((admin) => createNotification({
+    userId: admin.id,
+    notificationType,
+    title,
+    body,
+    auctionId,
+    saleId
+  })));
+}
+
 module.exports = {
   setSocketIo,
   createNotification,
   notifyOutbid,
+  notifyBidderBidAccepted,
+  notifySellerBidReceived,
   notifyAuctionWonBuyer,
   notifyAuctionClosedSeller,
   notifySellerDecision,
   notifyHandoverConfirmation,
-  notifySavedSearchMatch
+  notifySavedSearchMatch,
+  notifyAdmins
 };
-
